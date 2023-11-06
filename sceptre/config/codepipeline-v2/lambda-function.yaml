@@ -1,0 +1,51 @@
+---
+template:
+  path: lambda/function.yaml.j2
+
+dependencies:
+  - {{pwd}}/logs-loggroup.yaml
+
+hooks:
+  before_create:
+    - !cmd |
+        cd lambda-functions/codepipeline-v2
+        pip install -t . -r requirements.txt
+        zip -r ../codepipeline-v2.zip ./
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+        S3_BUCKET_NAME={{s3_bucket_artifact}}
+        aws s3 cp ../codepipeline-v2.zip "s3://${S3_BUCKET_NAME}/lambda-fuctions/{{stack_group_config.project_code}}/codepipeline-v2.zip"
+
+  before_update:
+    - !cmd |
+        cd lambda-functions/codepipeline-v2
+        pip install -t . -r requirements.txt
+        zip -r ../codepipeline-v2.zip ./
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+        S3_BUCKET_NAME={{s3_bucket_artifact}}
+        aws s3 cp ../codepipeline-v2.zip "s3://${S3_BUCKET_NAME}/lambda-fuctions/{{stack_group_config.project_code}}/codepipeline-v2.zip"
+
+sceptre_user_data:
+  project_code: {{stack_group_config.project_code}}
+  source_repo_url: {{stack_group_config.source_repo_url}}
+  functions:
+    - name: LambdaCustomCodePipeline
+      function_name: {{lambda_name}}
+      code:
+        s3_bucket: "!Sub wordpress-pipeline-${AWS::AccountId}-${AWS::Region}"
+        s3_key: lambda-fuctions/{{stack_group_config.project_code}}/codepipeline-v2.zip
+        s3_object_version: !rcmd |
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          S3_BUCKET_NAME={{s3_bucket_artifact}}
+          echo -n $(aws s3api list-object-versions \
+            --bucket "${S3_BUCKET_NAME}" \
+            --prefix lambda-fuctions/{{stack_group_config.project_code}}/codepipeline-v2.zip \
+            | jq -r '.Versions | sort_by(.LastModified) | reverse[0] | .VersionId')
+      handler: lambda_function.handler
+      role: !stack_output "{{pwd}}/iam-role.yaml::LambdaCustomCodePipelineArn"
+      description: Lambda to invoke CodeDeploy deployment
+      memory_size: 128
+      timeout: 60
+      runtime: python3.10
+      tags:
+        Name: LambdaCustomCodePipeline
+        Project: {{stack_group_config.project_code}}

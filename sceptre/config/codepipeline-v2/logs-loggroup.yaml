@@ -1,0 +1,11 @@
+---
+template:
+  path: logs/log_group.yaml.j2
+
+sceptre_user_data:
+  project_code: {{project_code}}
+  source_repo_url: {{source_repo_url}}
+  log_groups:
+    - name: LambdaCustomCodePipeline
+      log_group_name: /aws/lambda/{{lambda_name}}
+      retention_in_days: {{loggroup_retention_in_days}}

@@ -1,0 +1,49 @@
+---
+template:
+  path: custom-code-pipeline.yaml.j2
+
+sceptre_user_data:
+  project_code: {{project_code}}
+  source_repo_url: {{source_repo_url}}
+  description: Custom CodePipeline for {{project_code}} to support Pipeline Type V2
+  pipelines:
+    -
+      name: SamplePipeline
+      service_token: !stack_output {{pwd}}/lambda-function.yaml::LambdaCustomCodePipelineArn
+      pipeline_name: SamplePipeline
+      pipeline_type: V2
+      role_arn: !stack_output {{pwd}}/iam-role.yaml::CodePipelineRoleArn
+      stages:
+        - name: Source
+          actions:
+          - name: GetBuildSource
+            action_type_id:
+              category: Source
+              owner: AWS
+              provider: S3
+              version: 1
+            configuration: |
+              S3Bucket: {{s3_bucket_artifact}}
+              S3ObjectKey: {{s3_source_artifact}}
+              PollForSourceChanges: "false"
+            output_artifacts:
+              - name: BuildSource
+        - name: Deployment
+          actions:
+          - name: DeployResources
+            action_type_id:
+              category: Deploy
+              owner: AWS
+              provider: CodeDeploy
+              version: 1
+            configuration: |
+              ApplicationName: SampleCodeDeployApplication
+              DeploymentGroupName: SampleCodeDeployDeploymentGroup
+            input_artifacts:
+              - name: BuildSource
+      artifact_store:
+        location: {{s3_bucket_artifact}}
+        type: S3
+      tags:
+        Name: SampleName
+        Project: {{ project_code }}
