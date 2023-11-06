@@ -1,0 +1,8 @@
+---
+pwd: codepipeline-v2
+cfn_path: codepipeline-v2
+
+s3_bucket_artifact: SampleS3Bucket
+s3_source_artifact: SampleSourceCode.zip
+lambda_name: {{stack_group_config.project_code}}-LambdaCustomCodePipeline
+loggroup_retention_in_days: 7
